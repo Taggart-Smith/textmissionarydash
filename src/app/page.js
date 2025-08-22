@@ -1,15 +1,18 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Home() {
   const [items, setItems] = useState([]);
   const [nextPageToken, setNextPageToken] = useState();
   const [loading, setLoading] = useState(false);
   const [authed, setAuthed] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
+      setInitialLoading(true);
       try {
         const res = await fetch("/api/photos/list", {
           method: "POST",
@@ -19,6 +22,7 @@ export default function Home() {
 
         if (res.status === 401) {
           setAuthed(false);
+          setInitialLoading(false);
           return;
         }
 
@@ -32,11 +36,15 @@ export default function Home() {
           data = {};
         }
 
+        console.log("API response:", data); // Debugging
+
         setItems(data.mediaItems || []);
         setNextPageToken(data.nextPageToken || null);
       } catch (err) {
         console.error("Fetch failed:", err);
         setAuthed(false);
+      } finally {
+        setInitialLoading(false);
       }
     })();
   }, []);
@@ -71,24 +79,28 @@ export default function Home() {
       <header className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Mission Media</h1>
         <div className="space-x-3">
-          <a className="rounded bg-black px-3 py-2 text-white" href="/api/auth/signin">
+          <Link href="/api/auth/signin">
             Sign in
-          </a>
-          <a className="rounded bg-gray-200 px-3 py-2" href="/api/auth/signout">
+          </Link>
+          <Link className="rounded bg-gray-200 px-3 py-2" href="/api/auth/signout">
             Sign out
-          </a>
+          </Link>
         </div>
       </header>
 
       {!authed ? (
         <p>Please sign in with Google to view your photos.</p>
+      ) : initialLoading ? (
+        <p>Loading photos...</p>
+      ) : items.length === 0 ? (
+        <p>No media found.</p>
       ) : (
         <>
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {items.map((m) => (
               <li key={m.id} className="group overflow-hidden rounded-lg bg-white shadow">
                 <Link href={`/viewer/${m.id}`}>
-                  <img
+                  <Image
                     src={`${m.baseUrl}=w400-h400`}
                     alt={m.filename || m.id}
                     className="h-40 w-full object-cover transition-transform group-hover:scale-105"
