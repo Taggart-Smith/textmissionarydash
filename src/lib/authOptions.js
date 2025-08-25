@@ -11,7 +11,7 @@ export const authOptions = {
             "openid",
             "email",
             "profile",
-            "https://www.googleapis.com/auth/photoslibrary.appendonly",
+            "https://www.googleapis.com/auth/photoslibrary.readonly",
             "https://www.googleapis.com/auth/photoslibrary.readonly.appcreateddata"
           ].join(" "),
           access_type: "offline",
@@ -31,7 +31,6 @@ export const authOptions = {
     },
     async session({ session, token }) {
       session.access_token = token.access_token;
-      session.expires_at = token.expires_at;
       return session;
     },
   },

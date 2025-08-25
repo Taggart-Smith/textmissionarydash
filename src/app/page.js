@@ -3,12 +3,25 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
+const API_KEY = process.env.API_KEY; // <-- Replace with your Google API key
+
 export default function Home() {
   const [items, setItems] = useState([]);
   const [nextPageToken, setNextPageToken] = useState();
   const [loading, setLoading] = useState(false);
   const [authed, setAuthed] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [accessToken, setAccessToken] = useState(null);
+
+  // Load Google Picker API script
+  useEffect(() => {
+    if (!window.gapi) {
+      const script = document.createElement("script");
+      script.src = "https://apis.google.com/js/api.js";
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -36,7 +49,10 @@ export default function Home() {
           data = {};
         }
 
-        console.log("API response:", data); // Debugging
+        // Try to get access token from session endpoint
+        const sessionRes = await fetch("/api/auth/session");
+        const sessionData = await sessionRes.json();
+        setAccessToken(sessionData?.access_token || null);
 
         setItems(data.mediaItems || []);
         setNextPageToken(data.nextPageToken || null);
@@ -74,6 +90,34 @@ export default function Home() {
     }
   }
 
+  // Picker API logic
+  function openPicker() {
+    if (!accessToken) {
+      alert("No access token available. Please sign in.");
+      return;
+    }
+    if (!window.gapi) {
+      alert("Google API script not loaded yet.");
+      return;
+    }
+    window.gapi.load("picker", {
+      callback: function () {
+        const picker = new window.google.picker.PickerBuilder()
+          .addView(window.google.picker.ViewId.PHOTOS)
+          .setOAuthToken(accessToken)
+          .setDeveloperKey(API_KEY)
+          .setCallback((data) => {
+            if (data.action === window.google.picker.Action.PICKED) {
+              console.log("Picked:", data.docs);
+              // You can handle the picked photos here (e.g., display or save them)
+            }
+          })
+          .build();
+        picker.setVisible(true);
+      },
+    });
+  }
+
   return (
     <main className="mx-auto max-w-6xl p-6">
       <header className="mb-6 flex items-center justify-between">
@@ -87,6 +131,17 @@ export default function Home() {
           </Link>
         </div>
       </header>
+
+      {authed && (
+        <div className="mb-4 flex justify-end">
+          <button
+            onClick={openPicker}
+            className="rounded bg-blue-600 px-4 py-2 text-white"
+          >
+            Pick from Google Photos
+          </button>
+        </div>
+      )}
 
       {!authed ? (
         <p>Please sign in with Google to view your photos.</p>
